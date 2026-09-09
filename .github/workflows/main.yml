@@ -25,22 +25,25 @@ jobs:
           unzip -o VYRO_Android_Starter.zip
         fi
 
-    - name: Downgrade Kotlin & Fix Compose Options
+    - name: Inject Kotlin Compose Plugin
       run: |
-        # Replace Kotlin 2.x with 1.9.20 in build files to bypass compiler error
-        find . -type f \( -name "build.gradle" -o -name "build.gradle.kts" \) -exec sed -i 's/2\.[0-9]\.[0-9]*/1.9.20/g' {} + || true
-        find . -type f \( -name "build.gradle" -o -name "build.gradle.kts" \) -exec sed -i 's/kotlin("android") version "[^"]*"/kotlin("android") version "1.9.20"/g' {} + || true
+        # Append Kotlin Compose plugin dynamically if Kotlin 2.0 is detected
+        find . -name "build.gradle.kts" -exec sed -i '1s/^/plugins { id("org.jetbrains.kotlin.plugin.compose") version "2.0.0" apply false }\n/' {} + || true
+        find . -name "build.gradle" -exec sed -i '1s/^/plugins { id "org.jetbrains.kotlin.plugin.compose" version "2.0.0" apply false }\n/' {} + || true
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
     - name: Build APK with Gradle
       run: |
-        if [ -d "VYRO_Android" ]; then
-          cd VYRO_Android
+        PROJECT_DIR=$(find . -maxdepth 2 -name "gradlew" -exec dirname {} \;)
+        if [ -n "$PROJECT_DIR" ]; then
+          cd "$PROJECT_DIR"
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon -Pandroid.experimental.artThatIgnoresKotlin20=true
+        else
+          gradle assembleDebug --no-daemon -Pandroid.experimental.artThatIgnoresKotlin20=true
         fi
-        chmod +x gradlew || true
-        ./gradlew assembleDebug --stacktrace || gradle assembleDebug --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
