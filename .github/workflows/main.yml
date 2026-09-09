@@ -25,9 +25,11 @@ jobs:
           unzip -o VYRO_Android_Starter.zip
         fi
 
-    - name: Disable Jetpack Compose Requirement Temporarily
+    - name: Downgrade Kotlin & Fix Compose Options
       run: |
-        find . -name "build.gradle*" -exec sed -i 's/buildFeatures {/buildFeatures {\n        compose = false/g' {} + || true
+        # Replace Kotlin 2.x with 1.9.20 in build files to bypass compiler error
+        find . -type f \( -name "build.gradle" -o -name "build.gradle.kts" \) -exec sed -i 's/2\.[0-9]\.[0-9]*/1.9.20/g' {} + || true
+        find . -type f \( -name "build.gradle" -o -name "build.gradle.kts" \) -exec sed -i 's/kotlin("android") version "[^"]*"/kotlin("android") version "1.9.20"/g' {} + || true
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
@@ -38,7 +40,7 @@ jobs:
           cd VYRO_Android
         fi
         chmod +x gradlew || true
-        ./gradlew assembleDebug --no-daemon || gradle assembleDebug --no-daemon
+        ./gradlew assembleDebug --stacktrace || gradle assembleDebug --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
