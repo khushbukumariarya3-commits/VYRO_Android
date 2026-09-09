@@ -25,27 +25,24 @@ jobs:
           unzip -o VYRO_Android_Starter.zip
         fi
 
-    - name: Fix Kotlin Compose Plugin Issue
+    - name: Disable Jetpack Compose Requirement Temporarily
       run: |
-        # Inject Compose Compiler plugin if missing
-        if [ -f "build.gradle.kts" ]; then
-          sed -i 's/plugins {/plugins {\n    id("org.jetbrains.kotlin.plugin.compose") version "2.0.0" apply false/' build.gradle.kts || true
-        fi
-        if [ -f "app/build.gradle.kts" ]; then
-          sed -i 's/plugins {/plugins {\n    id("org.jetbrains.kotlin.plugin.compose")/' app/build.gradle.kts || true
-        fi
+        find . -name "build.gradle*" -exec sed -i 's/buildFeatures {/buildFeatures {\n        compose = false/g' {} + || true
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
     - name: Build APK with Gradle
       run: |
-        cd VYRO_Android || true
-        gradle assembleDebug --no-daemon
+        if [ -d "VYRO_Android" ]; then
+          cd VYRO_Android
+        fi
+        chmod +x gradlew || true
+        ./gradlew assembleDebug --no-daemon || gradle assembleDebug --no-daemon
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: VYRO-Debug-APK
-        path: "**/app/build/outputs/apk/debug/*.apk"
+        path: "**/build/outputs/apk/debug/*.apk"
         
