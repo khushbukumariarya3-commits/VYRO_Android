@@ -1,51 +1,31 @@
-name: Build Android APK
+base = Path("/mnt/data/VYRO_GitHub_APK_Ready") if base.exists(): shutil.rmtree(base) (base/"app/src/main/java/com/vyro/editor").mkdir(parents=True) (base/"app/src/main/res/values").mkdir(parents=True) (base/".github/workflows").mkdir(parents=True) (base/"gradle/wrapper").mkdir(parents=True)
+def write(rel, txt): p = base/rel p.parent.mkdir(parents=True, exist_ok=True) p.write_text(textwrap.dedent(txt).lstrip(), encoding="utf-8")
+write("settings.gradle.kts", """ pluginManagement { repositories { google() mavenCentral() gradlePluginPortal() } } dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS) repositories { google() mavenCentral() } } rootProject.name = "VYRO" include(":app") """)
+write("build.gradle.kts", """ plugins { id("com.android.application") version "8.6.1" apply false id("org.jetbrains.kotlin.android") version "2.0.21" apply false } """)
+write("gradle.properties", """ org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8 android.useAndroidX=true kotlin.code.style=official """)
+write("app/build.gradle.kts", """ plugins { id("com.android.application") id("org.jetbrains.kotlin.android") }
+android { namespace = "com.vyro.editor" compileSdk = 35
+defaultConfig {
+    applicationId = "com.vyro.editor"
+    minSdk = 26
+    targetSdk = 35
+    versionCode = 1
+    versionName = "1.0"
+}
 
-on:
-  push:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+buildFeatures { compose = true }
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    - name: Unzip Project Files
-      run: |
-        if [ -f "VYRO_Android_Starter.zip" ]; then
-          unzip -o VYRO_Android_Starter.zip
-        fi
-
-    - name: Fix Compose Compiler Plugin
-      run: |
-        # Inject Compose Compiler plugin for Kotlin 2.0+
-        find . -name "build.gradle.kts" -exec sed -i 's/alias(libs.plugins.android.application)/alias(libs.plugins.android.application)\n    id("org.jetbrains.kotlin.plugin.compose") version "2.0.0"/g' {} + || true
-        find . -name "build.gradle" -exec sed -i 's/apply plugin: .com.android.application./apply plugin: "com.android.application"\napply plugin: "org.jetbrains.kotlin.plugin.compose"/g' {} + || true
-
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-
-    - name: Build APK with Gradle
-      run: |
-        ROOT_DIR=$(pwd)
-        if [ -d "VYRO_Android" ]; then
-          cd VYRO_Android
-        fi
-        chmod +x gradlew || true
-        ./gradlew assembleDebug --no-daemon -Pandroid.experimental.artThatIgnoresKotlin20=true || gradle assembleDebug --no-daemon -Pandroid.experimental.artThatIgnoresKotlin20=true
-
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: VYRO-Debug-APK
-        path: "**/build/outputs/apk/debug/*.apk"
-        
+composeOptions {
+    kotlinCompilerExtensionVersion = "1.5.15"
+}
+}
+dependencies { implementation("androidx.core:core-ktx:1.15.0") implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7") implementation("androidx.activity:activity-compose:1.10.0") implementation(platform("androidx.compose:compose-bom:2024.09.03")) implementation("androidx.compose.ui:ui") implementation("androidx.compose.ui:ui-tooling-preview") implementation("androidx.compose.material3:material3") implementation("androidx.compose.material:material-icons-extended") debugImplementation("androidx.compose.ui:ui-tooling") } """)
+write("app/src/main/AndroidManifest.xml", """           """)
+write("app/src/main/res/values/styles.xml", """   false #070B14 #070B14   """)
+write("app/src/main/java/com/vyro/editor/MainActivity.kt", """ package com.vyro.editor
+import android.os.Bundle import androidx.activity.ComponentActivity import androidx.activity.compose.setContent import androidx.compose.animation.core.* import androidx.compose.foundation.background import androidx.compose.foundation.clickable import androidx.compose.foundation.layout.* import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.material.icons.Icons import androidx.compose.material.icons.filled.* import androidx.compose.material3.* import androidx.compose.runtime.* import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.scale import androidx.compose.ui.graphics.Brush import androidx.compose.ui.graphics.Color import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import kotlinx.coroutines.delay
+private val bg = Color(0xFF070B14) private val card = Color(0xFF121827) private val purple = Color(0xFF7658FF) private val blue = Color(0xFF5AB2FF)
+class MainActivity : ComponentActivity() { override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState) setContent { VyroApp() } } }
+@Composable fun VyroApp() { var splash by remember { mutableStateOf(true) } if (splash) Splash { splash = false } else Home() }
+@Composable fun Splash(done: () -> Unit) { val scale = remember { Animatable(0.65f) } LaunchedEffect(Unit) { scale.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) delay(900) done() } Box(Modifier.fillMaxSize().background(bg), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Box( Modifier.size(150.dp).scale(scale.value) .background(Brush.linearGradient(listOf(purple, blue)), RoundedCornerShape(40.dp)), contentAlignment = Alignment.Center ) { Text("V", fontSize = 95.sp, fontWeight = FontWeight.Black, color = bg) } Spacer(Modifier.height(22.dp)) Text("VYRO", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = 7.sp) Text("CREATE BEYOND LIMITS", color = Color(0xFFB9C4D8), fontSize = 11.sp) } } }
+@Composable fun Home() { var editor by remember { mutableStateOf(false) } if (editor) Editor { editor = false } else { Column(Modifier.fillMaxSize().background(bg).padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Text("VYRO", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold) Spacer(Modifier.weight(1f)) Icon(Icons.Default.Settings, null, tint = Color.White) } Card
